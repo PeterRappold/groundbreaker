@@ -1,0 +1,88 @@
+{
+  "game": "Wiesen Scratcher",
+  "style": "8/16-bit retro, no anti-aliasing",
+  "fps_defaults": { "standard": 10, "walk": 12, "idle": 8, "dig": 10 },
+  "assets": {
+    "helpers": [
+      {
+        "name": "helper_knecht",
+        "file": "helpers/helper_knecht.png",
+        "frameW": 48,
+        "frameH": 48,
+        "frameCount": 25,
+        "hotspot": [24, 42],
+        "fps": 10,
+        "animations": {
+          "idle": [0, 3],
+          "walk": [4, 9],
+          "dig": [10, 15],
+          "sleep": [16, 17],
+          "wake": [18, 20],
+          "hit": [21, 24]
+        }
+      },
+      {
+        "name": "helper_handwerker",
+        "file": "helpers/helper_handwerker.png",
+        "frameW": 48,
+        "frameH": 48,
+        "frameCount": 25,
+        "hotspot": [24, 42],
+        "fps": 10,
+        "animations": {
+          "idle": [0, 3], "walk": [4, 9], "dig": [10, 15], "sleep": [16, 17], "wake": [18, 20], "hit": [21, 24]
+        }
+      },
+      {
+        "name": "helper_meister",
+        "file": "helpers/helper_meister.png",
+        "frameW": 48,
+        "frameH": 48,
+        "frameCount": 25,
+        "hotspot": [24, 42],
+        "fps": 10,
+        "animations": {
+          "idle": [0, 3], "walk": [4, 9], "dig": [10, 15], "sleep": [16, 17], "wake": [18, 20], "hit": [21, 24]
+        }
+      }
+    ],
+    "coins": [
+      { "name": "coin_bronze", "file": "coins/coin_bronze.png", "frameW": 48, "frameH": 48, "frameCount": 8, "fps": 10, "animations": { "spin": [0, 7] } },
+      { "name": "coin_silver", "file": "coins/coin_silver.png", "frameW": 48, "frameH": 48, "frameCount": 8, "fps": 10, "animations": { "spin": [0, 7] } },
+      { "name": "coin_gold", "file": "coins/coin_gold.png", "frameW": 48, "frameH": 48, "frameCount": 8, "fps": 10, "animations": { "spin": [0, 7] } },
+      { "name": "coin_titanium", "file": "coins/coin_titanium.png", "frameW": 48, "frameH": 48, "frameCount": 8, "fps": 10, "animations": { "spin": [0, 7] } }
+    ],
+    "particles": [
+      { "name": "dust", "file": "particles/dust.png", "frameW": 16, "frameH": 16, "frameCount": 6, "fps": 12 },
+      { "name": "sparkle", "file": "particles/sparkle.png", "frameW": 16, "frameH": 16, "frameCount": 6, "fps": 10 },
+      { "name": "coin_shine", "file": "particles/coin_shine.png", "frameW": 24, "frameH": 24, "frameCount": 6, "fps": 10 }
+    ],
+    "ui": {
+      "portraits": { "frameW": 96, "frameH": 96 },
+      "icons": { "frameW": 24, "frameH": 24 },
+      "buttons": { "frameW": 160, "frameH": 36, "states": ["normal", "hover", "pressed"] }
+    }
+    ,
+    "uiIcons": [
+      { "name": "icon_helper", "file": "ui/icons/helper.png", "frameW": 24, "frameH": 24, "frameCount": 1 },
+      { "name": "icon_economy", "file": "ui/icons/economy.png", "frameW": 24, "frameH": 24, "frameCount": 1 },
+      { "name": "icon_rebirth", "file": "ui/icons/rebirth.png", "frameW": 24, "frameH": 24, "frameCount": 1 },
+      { "name": "icon_test", "file": "ui/icons/test.png", "frameW": 24, "frameH": 24, "frameCount": 1 },
+      { "name": "icon_close", "file": "ui/icons/close.png", "frameW": 24, "frameH": 24, "frameCount": 1 },
+      { "name": "icon_speed", "file": "ui/icons/speed.png", "frameW": 24, "frameH": 24, "frameCount": 1 },
+      { "name": "icon_area", "file": "ui/icons/area.png", "frameW": 24, "frameH": 24, "frameCount": 1 },
+      { "name": "icon_buy", "file": "ui/icons/buy.png", "frameW": 24, "frameH": 24, "frameCount": 1 },
+      { "name": "icon_loot", "file": "ui/icons/loot.png", "frameW": 24, "frameH": 24, "frameCount": 1 }
+    ],
+    "backgrounds": [
+      { "name": "meadow_tier1", "file": "backgrounds/meadow_tier1.png", "frameW":128, "frameH":128, "frameCount":1 },
+      { "name": "meadow_tier2", "file": "backgrounds/meadow_tier2.png", "frameW":128, "frameH":128, "frameCount":1 },
+      { "name": "meadow_tier3", "file": "backgrounds/meadow_tier3.png", "frameW":128, "frameH":128, "frameCount":1 },
+      { "name": "meadow_tier4", "file": "backgrounds/meadow_tier4.png", "frameW":128, "frameH":128, "frameCount":1 },
+      { "name": "meadow_tier5", "file": "backgrounds/meadow_tier5.png", "frameW":128, "frameH":128, "frameCount":1 },
+      { "name": "soil_tile", "file": "backgrounds/soil_tile.png", "frameW":128, "frameH":128, "frameCount":1 },
+      { "name": "vignette", "file": "backgrounds/vignette_overlay.png", "frameW":1440, "frameH":840, "frameCount":1 },
+      { "name": "clouds", "file": "backgrounds/clouds.png", "frameW":768, "frameH":64, "frameCount":1 }
+    ]
+  }
+}

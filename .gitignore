@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+.nodeenv/
+
+# Build outputs
+dist-desktop/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temp files
+*.tmp
+*.temp
+patch*.js
+patch*.py
+script_old.js

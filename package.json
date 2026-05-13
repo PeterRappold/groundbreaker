@@ -1,0 +1,76 @@
+{
+  "name": "groundbreaker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GroundBreaker desktop edition with Electron packaging for Windows and Linux.",
+  "author": {
+    "name": "HTL Leoben",
+    "email": "noreply@htlleoben.local"
+  },
+  "homepage": "https://local.invalid/groundbreaker",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "generate-icon": "node scripts/generate-desktop-icon.js",
+    "pack": "npm run generate-icon && electron-builder --dir",
+    "dist": "npm run generate-icon && electron-builder",
+    "dist:linux": "npm run generate-icon && electron-builder --linux",
+    "dist:win": "npm run generate-icon && electron-builder --win",
+    "dist:win:web": "npm run generate-icon && electron-builder --win nsis-web",
+    "bundle:linux-installer": "mkdir -p dist-desktop && cp scripts/install-linux.sh dist-desktop/install-groundbreaker.sh && chmod +x dist-desktop/install-groundbreaker.sh",
+    "bundle:linux-installer:web": "node scripts/generate-linux-installer.js",
+    "release:web": "npm run dist:linux && npm run bundle:linux-installer:web"
+  },
+  "build": {
+    "appId": "com.htlleoben.groundbreaker",
+    "productName": "GroundBreaker",
+    "directories": {
+      "output": "dist-desktop"
+    },
+    "files": [
+      "**/*",
+      "!dist-desktop/**",
+      "!node_modules/**/test/**",
+      "!**/*.map"
+    ],
+    "extraMetadata": {
+      "main": "electron/main.js"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Game",
+      "maintainer": "HTL Leoben <noreply@htlleoben.local>",
+      "icon": "build/icon.png"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "nsisWeb"
+      ]
+    },
+    "nsisWeb": {
+      "artifactName": "${productName}-Web-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "${env.RELEASE_BASE_URL}"
+      }
+    ]
+  },
+  "devDependencies": {
+    "electron": "^31.3.1",
+    "electron-builder": "^25.1.8",
+    "sharp": "^0.33.5"
+  }
+}

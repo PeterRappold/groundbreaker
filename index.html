@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>GroundBreaker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css?v=25" />
+  </head>
+  <body>
+    <div id="slotSelectScreen" class="slot-select-screen">
+      <div class="slot-select-panel panel main-menu-shell">
+        <div class="main-menu-hero">
+          <h1 class="main-title">GROUNDBREAKER</h1>
+          <p class="main-subtitle">Dig deeper. Find treasures.</p>
+        </div>
+
+        <div class="main-menu-actions" aria-label="Main menu actions">
+          <button id="mainPlayBtn" class="menu-btn large main-menu-action" type="button">
+            <span class="ui-icon ui-icon-play" aria-hidden="true"></span>
+            <span>Play</span>
+          </button>
+          <button id="mainSettingsBtn" class="menu-btn large main-menu-action" type="button">
+            <span class="ui-icon ui-icon-settings" aria-hidden="true"></span>
+            <span>Settings</span>
+          </button>
+          <button id="mainQuitBtn" class="menu-btn large main-menu-action danger" type="button">
+            <span class="ui-icon ui-icon-close" aria-hidden="true"></span>
+            <span>Quit Game</span>
+          </button>
+        </div>
+
+        <div id="mainMenuPlayPanel" class="main-menu-panel hidden">
+          <div class="main-menu-panel-copy">
+            <h2>Save Slots</h2>
+            <p>Select a save to continue.</p>
+          </div>
+          <div id="slotContainer" class="slot-container"></div>
+        </div>
+
+        <div id="mainMenuQuitPanel" class="main-menu-panel hidden">
+          <div class="main-menu-panel-copy">
+            <h2>Quit Game</h2>
+            <p>Thanks for playing. You can close this tab now.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div id="settingsPanel" class="settings-panel hidden">
+        <h3>Settings</h3>
+        <label><input type="checkbox" id="settingParticles" checked> Particles</label>
+        <label><input type="checkbox" id="settingAutoSave" checked> Auto-save</label>
+        <label><input type="checkbox" id="settingFPS"> Show FPS</label>
+        
+        <div class="setting-group">
+          <label>SFX Volume:</label>
+          <input type="range" id="settingVolume" min="0" max="1" step="0.05" value="0.5">
+        </div>
+      
+      <div class="setting-group">
+          <label>Language:</label>
+        <select id="settingLanguage">
+            <option value="en" selected>English</option>
+            <option value="de">Deutsch</option>
+            <option value="es">Español</option>
+        </select>
+      </div>
+      
+      <div class="setting-group">
+          <label>Resolution:</label>
+        <select id="settingResolution">
+          <option value="1">100% (High)</option>
+          <option value="0.75">75% (Medium)</option>
+          <option value="0.5">50% (Low)</option>
+        </select>
+      </div>
+
+      <button id="resetSaveBtn" class="menu-btn small danger" style="margin-top: 1rem;">Reset Save</button>
+        <button id="closeSettingsBtn" class="menu-btn small" style="margin-top: 0.5rem;">Close</button>
+    </div>
+
+    <div class="bg-layer"></div>
+    <div id="fpsCounter" class="fps-counter hidden">60 FPS</div>
+    <main class="app">
+
+      <section class="game-grid">
+        <section class="scratch-zone panel">
+          <div class="canvas-wrap">
+            <button id="testRebirthUnlockBtn" class="test-unlock-btn" type="button" title="Test: Rebirth sofort freischalten">
+              <span class="tab-icon icon-test" aria-hidden="true"></span>
+              <span>Rebirth Test</span>
+            </button>
+            <canvas id="scratchCanvas" width="1440" height="840" aria-label="Scratch Field"></canvas>
+            <div id="lootFeed" class="loot-feed" aria-live="polite"></div>
+            <div id="upgradeHint" class="upgrade-hint" aria-live="polite"></div>
+            <div id="tooWeakMsg" style="position: absolute; bottom: 1rem; left: 1rem; background: rgba(255,100,100,0.9); color: white; padding: 0.5rem 1rem; border: 2px solid #ff6464; border-radius: 4px; font-family: 'Press Start 2P'; font-size: 0.6rem; display: none; z-index: 1000;"></div>
+            <div id="autoSaveIndicator" class="autosave-indicator">Saving...</div>
+          </div>
+        </section>
+
+        <aside class="upgrades panel">
+          <div class="sidebar-header panel">
+            <div class="brand sidebar-brand">
+              <h1>GroundBreaker</h1>
+              <p>Dig deeper. Find treasures.</p>
+            </div>
+            <div class="hud-actions">
+              <button id="inGameSaveBtn" class="menu-btn small" title="Save"><span class="custom-icon icon-save"></span></button>
+            <button id="inGameSettingsBtn" class="menu-btn small" title="Settings"><span class="custom-icon icon-settings"></span></button>
+            <button id="inGameMainMenuBtn" class="menu-btn small" title="Main Menu"><span class="custom-icon icon-home"></span></button>
+            </div>
+          </div>
+          
+          <div class="top-currencies sidebar-currencies" aria-label="Currency" style="display: flex; justify-content: center; gap: 2rem; align-items: center;">
+            <div class="currency compact" style="text-align: center;">
+              <canvas id="coinIconCanvas" class="coin-icon-canvas" width="40" height="40"></canvas>
+              <strong id="fragmentsValue">0</strong>
+            </div>
+            <div class="currency compact essence" style="text-align: center;">
+              <span class="currency-icon icon-stardust" aria-hidden="true"></span>
+              <strong id="rebirthValue">0</strong>
+            </div>
+          </div>
+
+          <div class="sidebar-tabs" role="tablist" aria-label="Upgrade Categories">
+            <button id="tabHelperBtn" class="tab-btn active" type="button">
+              <span class="tab-icon icon-helper" aria-hidden="true"></span>
+              <span>Helpers</span>
+            </button>
+            <button id="tabEconomyBtn" class="tab-btn" type="button">
+              <span class="tab-icon icon-economy" aria-hidden="true"></span>
+              <span>Economy</span>
+            </button>
+            <button id="tabRebirthBtn" class="tab-btn" type="button">
+              <span class="tab-icon icon-rebirth" aria-hidden="true"></span>
+              <span>Rebirth</span>
+            </button>
+          </div>
+
+          <p id="boardStatus" class="board-status-side hidden">Helpers dig automatically.</p>
+
+          <div class="upgrade-group tab-panel" data-tab-panel="helper">
+            <div class="helper-header">
+              <canvas id="knechtPortrait" class="helper-portrait-canvas" width="40" height="48"></canvas>
+              <h3 style="font-family: 'Press Start 2P'; font-size: 0.8rem;">WORKER</h3>
+            </div>
+            <button id="radiusBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
+            <button id="autoSpeedBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
+            <button id="autoPowerBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
+            <button id="knechtsStrengthBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
+          </div>
+
+          <div class="upgrade-group tab-panel" data-tab-panel="helper">
+            <div class="helper-header">
+              <canvas id="handwerkerPortrait" class="helper-portrait-canvas" width="40" height="48"></canvas>
+              <h3 style="font-family: 'Press Start 2P'; font-size: 0.8rem;">BUILDER</h3>
+            </div>
+            <button id="replenishBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
+            <button id="handwerkerSpeedBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
+            <button id="handwerkerAreaBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
+            <button id="handwerkerStrengthBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
+          </div>
+
+          <div class="upgrade-group tab-panel" data-tab-panel="helper">
+            <div class="helper-header">
+              <canvas id="meisterPortrait" class="helper-portrait-canvas" width="40" height="48"></canvas>
+              <h3 style="font-family: 'Press Start 2P'; font-size: 0.8rem;">MASTER</h3>
+            </div>
+            <button id="meisterBuyBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
+            <button id="meisterSpeedBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
+            <button id="meisterAreaBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
+            <button id="meisterStrengthBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
+          </div>
+
+          <div class="upgrade-group tab-panel" data-tab-panel="economy">
+            <h3>Economy</h3>
+            <button id="manualMultBtn" class="upgrade-btn"></button>
+            <button id="meadowTierBtn" class="upgrade-btn essence-btn"></button>
+          </div>
+
+          <div class="upgrade-group tab-panel" data-tab-panel="rebirth">
+            <h3>Rebirth</h3>
+            <div class="rebirth-sidebar-info">
+              <div class="rebirth-sidebar-stat">
+                <span>Stardust</span>
+                <strong id="rebirthSidebarShards">0</strong>
+              </div>
+              <div class="rebirth-sidebar-stat">
+                <span>Rebirths</span>
+                <strong id="rebirthSidebarCount">0</strong>
+              </div>
+            </div>
+            <div class="rebirth-sidebar-reqs">
+              <div class="rebirth-sidebar-req">
+                <span>Money</span>
+                <div class="rebirth-mini-bar"><div id="rebirthSidebarMoneyBar" class="rebirth-mini-fill"></div></div>
+                <small id="rebirthSidebarMoneyText">0 / 0</small>
+              </div>
+              <div class="rebirth-sidebar-req">
+                <span>Meadow Lv</span>
+                <div class="rebirth-mini-bar"><div id="rebirthSidebarTierBar" class="rebirth-mini-fill"></div></div>
+                <small id="rebirthSidebarTierText">0 / 0</small>
+              </div>
+            </div>
+            <button id="rebirthBtn" class="upgrade-btn rebirth-sidebar-btn">Rebirth</button>
+          </div>
+
+        </aside>
+      </section>
+
+      <section id="helperMenu" class="helper-menu hidden" aria-hidden="true" style="display: none;"></section>
+
+      <section id="rebirthMenu" class="rebirth-menu hidden" aria-hidden="true">
+        <div class="rebirth-card panel">
+          <div class="rebirth-header-shell">
+            <div class="rebirth-tab-row" role="tablist">
+              <button class="rebirth-tab active" type="button">Prestige</button>
+              <button class="rebirth-tab" type="button" disabled>
+                <span>Challenges</span>
+                <small>Coming soon</small>
+              </button>
+            </div>
+            <div class="rebirth-counter">
+              <span class="rebirth-counter-icon icon-stardust" aria-hidden="true"></span>
+              <strong id="rebirthMenuValue">0</strong>
+            </div>
+          </div>
+
+          <div class="rebirth-board">
+            <div class="rebirth-board-frame">
+              <div class="rebirth-overview">
+                <div class="rebirth-top-stats">
+                  <div class="rebirth-stat"><span>Meadow Lv</span><strong id="rebirthStatTier">0</strong></div>
+                  <div class="rebirth-stat"><span>Handwerker</span><strong id="rebirthStatHandwerker">0</strong></div>
+                  <div class="rebirth-stat"><span>Money</span><strong id="rebirthStatTotalMoney">0</strong></div>
+                </div>
+                <div class="rebirth-req-list">
+                  <div class="rebirth-req-item">
+                    <div class="rebirth-req-head"><span>Money</span><strong id="rebirthReqMoneyText">0/0</strong></div>
+                    <div class="rebirth-progress"><div id="rebirthReqMoneyBar" class="rebirth-progress-fill"></div></div>
+                  </div>
+                  <div class="rebirth-req-item">
+                    <div class="rebirth-req-head"><span>Meadow Lv</span><strong id="rebirthReqTierText">0/0</strong></div>
+                    <div class="rebirth-progress"><div id="rebirthReqTierBar" class="rebirth-progress-fill"></div></div>
+                  </div>
+                </div>
+                <button id="rebirthActionBtn" class="rebirth-action-btn" type="button" disabled>Rebirth not ready</button>
+              </div>
+
+              <div class="skill-tree-tier" data-tier="1">
+                <div class="tier-label">Tier 1 - Basics</div>
+                <div class="tier-nodes">
+                  <div class="skill-node" data-skill="digPower" data-max="10"><div class="custom-skill-icon" style="background-position: 0 0;"></div><span class="node-lvl">0/10</span></div>
+                  <div class="skill-node" data-skill="coinBoost" data-max="10"><div class="custom-skill-icon" style="background-position: -32px 0;"></div><span class="node-lvl">0/10</span></div>
+                  <div class="skill-node" data-skill="speedBoost" data-max="10"><div class="custom-skill-icon" style="background-position: -64px 0;"></div><span class="node-lvl">0/10</span></div>
+                  <div class="skill-node" data-skill="mastery" data-max="5"><div class="custom-skill-icon" style="background-position: -96px 0;"></div><span class="node-lvl">0/5</span></div>
+                  <div class="skill-node" data-skill="diamondBoost" data-max="5"><div class="custom-skill-icon" style="background-position: 0 -32px;"></div><span class="node-lvl">0/5</span></div>
+                  <div class="skill-node" data-skill="clickPower" data-max="5"><div class="custom-skill-icon" style="background-position: -32px -32px;"></div><span class="node-lvl">0/5</span></div>
+                </div>
+              </div>
+
+              <div class="tier-connector-line"></div>
+
+              <div class="skill-tree-tier locked" data-tier="2">
+                <div class="tier-label">Tier 2 - Advanced</div>
+                <div class="tier-nodes">
+                  <div class="skill-node" data-skill="doubleDrop" data-max="5"><div class="custom-skill-icon" style="background-position: -32px -32px;"></div><span class="node-lvl">0/5</span></div>
+                  <div class="skill-node" data-skill="knechtMastery" data-max="3"><div class="custom-skill-icon" style="background-position: -64px -32px;"></div><span class="node-lvl">0/3</span></div>
+                  <div class="skill-node" data-skill="autoCollect" data-max="5"><div class="custom-skill-icon" style="background-position: -96px -32px;"></div><span class="node-lvl">0/5</span></div>
+                  <div class="skill-node" data-skill="rareFinder" data-max="5"><div class="custom-skill-icon" style="background-position: 0 -64px;"></div><span class="node-lvl">0/5</span></div>
+                  <div class="skill-node" data-skill="bloomBoost" data-max="3"><div class="custom-skill-icon" style="background-position: -32px -64px;"></div><span class="node-lvl">0/3</span></div>
+                  <div class="skill-node" data-skill="turboDig" data-max="3"><div class="custom-skill-icon" style="background-position: -64px -64px;"></div><span class="node-lvl">0/3</span></div>
+                  <div class="skill-node" data-skill="luckyCharm" data-max="5"><div class="custom-skill-icon" style="background-position: 0 0;"></div><span class="node-lvl">0/5</span></div>
+                </div>
+              </div>
+
+              <div class="tier-connector-line"></div>
+
+              <div class="skill-tree-tier locked" data-tier="3">
+                <div class="tier-label">Tier 3 - Expert</div>
+                <div class="tier-nodes">
+                  <div class="skill-node" data-skill="goldenTouch" data-max="3"><div class="custom-skill-icon" style="background-position: -96px -64px;"></div><span class="node-lvl">0/3</span></div>
+                  <div class="skill-node" data-skill="handwerkerMastery" data-max="3"><div class="custom-skill-icon" style="background-position: 0 -96px;"></div><span class="node-lvl">0/3</span></div>
+                  <div class="skill-node" data-skill="megaMagnet" data-max="3"><div class="custom-skill-icon" style="background-position: -32px -96px;"></div><span class="node-lvl">0/3</span></div>
+                  <div class="skill-node" data-skill="rubyNose" data-max="5"><div class="custom-skill-icon" style="background-position: -64px -96px;"></div><span class="node-lvl">0/5</span></div>
+                  <div class="skill-node" data-skill="efficiency" data-max="3"><div class="custom-skill-icon" style="background-position: -96px -96px;"></div><span class="node-lvl">0/3</span></div>
+                  <div class="skill-node" data-skill="experience" data-max="5"><div class="custom-skill-icon" style="background-position: 0 0;"></div><span class="node-lvl">0/5</span></div>
+                </div>
+              </div>
+
+              <div class="tier-connector-line"></div>
+
+              <div class="skill-tree-tier locked" data-tier="4">
+                <div class="tier-label">Tier 4 - Master</div>
+                <div class="tier-nodes">
+                  <div class="skill-node" data-skill="archaeologistInstinct" data-max="3"><div class="custom-skill-icon" style="background-position: -32px 0;"></div><span class="node-lvl">0/3</span></div>
+                  <div class="skill-node" data-skill="treasureRain" data-max="5"><div class="custom-skill-icon" style="background-position: -64px 0;"></div><span class="node-lvl">0/5</span></div>
+                  <div class="skill-node" data-skill="eternalBonus" data-max="3"><div class="custom-skill-icon" style="background-position: -96px 0;"></div><span class="node-lvl">0/3</span></div>
+                  <div class="skill-node" data-skill="emeraldFever" data-max="3"><div class="custom-skill-icon" style="background-position: 0 -32px;"></div><span class="node-lvl">0/3</span></div>
+                  <div class="skill-node" data-skill="prestigeMultiplier" data-max="3"><div class="custom-skill-icon" style="background-position: -32px -32px;"></div><span class="node-lvl">0/3</span></div>
+                  <div class="skill-node" data-skill="ultimateDigging" data-max="1"><div class="custom-skill-icon" style="background-position: -64px -32px;"></div><span class="node-lvl">0/1</span></div>
+                </div>
+              </div>
+              <div id="skillInfoPanel" class="skill-info-panel">
+                <div class="skill-info-content">Select an upgrade for details</div>
+              </div>
+              <button id="rebirthResetUpgradesBtn" class="rebirth-reset-btn" type="button">Reset</button>
+            </div>
+          </div>
+          <div class="rebirth-footer">
+            <button id="closeRebirthMenuBtn" class="rebirth-back-btn" type="button">Back</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="script.js?v=23"></script>
+  </body>
+</html>

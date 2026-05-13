@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="840" viewBox="0 0 1440 840" shape-rendering="crispEdges">
+
+<defs>
+  <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#0a0914"/>
+    <stop offset="55%" stop-color="#11162d"/>
+    <stop offset="100%" stop-color="#06060d"/>
+  </linearGradient>
+  <radialGradient id="nebulaGreen" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#89f27c" stop-opacity="0.22"/>
+    <stop offset="100%" stop-color="#89f27c" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="nebulaBlue" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#45d8ff" stop-opacity="0.20"/>
+    <stop offset="100%" stop-color="#45d8ff" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="nebulaGold" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#ffd06e" stop-opacity="0.85"/>
+    <stop offset="100%" stop-color="#ffd06e" stop-opacity="0"/>
+  </radialGradient>
+</defs>
+<rect width="1440" height="840" fill="url(#sky)"/>
+
+<g opacity="0.95">
+  <path d="M0,120 C120,76 240,64 360,86 C500,112 636,154 784,134 C940,112 1060,58 1200,64 C1318,70 1386,110 1440,132 V0 H0 Z" fill="#17192c"/>
+  <path d="M0,220 C120,176 240,154 356,166 C486,180 616,242 754,238 C900,234 1010,158 1140,154 C1264,150 1352,184 1440,218 V0 H0 Z" fill="#1d2036" opacity="0.7"/>
+  <path d="M0,360 C126,312 246,296 372,302 C510,308 610,352 744,354 C882,356 1010,300 1140,286 C1274,272 1366,308 1440,340 V0 H0 Z" fill="#131425" opacity="0.8"/>
+</g>
+
+<g opacity="0.8">
+  <path d="M0,840 C104,760 194,722 286,698 C408,664 494,682 604,722 C722,764 808,776 918,746 C1044,712 1148,640 1264,624 C1346,612 1398,626 1440,642 V840 Z" fill="#080910"/>
+  <path d="M0,688 C112,648 220,648 330,672 C458,700 558,744 666,748 C796,754 908,706 1018,680 C1128,654 1242,654 1440,686 V840 H0 Z" fill="#151024" opacity="0.7"/>
+  <path d="M0,610 C116,568 224,560 336,578 C470,600 566,648 684,656 C804,664 910,614 1018,588 C1140,558 1270,556 1440,596 V840 H0 Z" fill="#201232" opacity="0.6"/>
+</g>
+
+<g fill="none" stroke-linecap="round">
+  <path d="M140,170 C82,250 78,360 122,468 C160,556 158,652 116,768" stroke="#d9b36a" stroke-width="7" opacity="0.85"/>
+  <path d="M530,0 C492,100 500,210 548,318 C596,428 600,528 564,620" stroke="#45d8ff" stroke-width="8" opacity="0.82"/>
+  <path d="M1052,58 C986,150 984,256 1038,366 C1090,472 1090,574 1048,760" stroke="#d9b36a" stroke-width="7" opacity="0.82"/>
+</g>
+
+<g opacity="0.9">
+  <circle cx="148" cy="184" r="34" fill="url(#nebulaGold)"/>
+  <circle cx="1120" cy="150" r="38" fill="url(#nebulaBlue)"/>
+  <circle cx="480" cy="666" r="42" fill="url(#nebulaGreen)"/>
+  <circle cx="1228" cy="686" r="34" fill="url(#nebulaBlue)"/>
+</g>
+
+<g opacity="0.9">
+  <rect x="96" y="164" width="16" height="16" fill="#f1c765"/>
+  <rect x="104" y="148" width="12" height="12" fill="#ffd87b"/>
+  <rect x="124" y="176" width="8" height="8" fill="#cda353"/>
+  <rect x="1100" y="124" width="16" height="16" fill="#3fc6ff"/>
+  <rect x="1118" y="144" width="10" height="10" fill="#9beaff"/>
+  <rect x="1180" y="682" width="12" height="12" fill="#ffd06e"/>
+  <rect x="1198" y="690" width="8" height="8" fill="#ffef9b"/>
+</g>
+
+<g opacity="0.25">
+  <circle cx="280" cy="240" r="180" fill="#14182a"/>
+  <circle cx="866" cy="220" r="230" fill="#10162b"/>
+  <circle cx="740" cy="520" r="280" fill="#0c1020"/>
+</g>
+
+</svg>
