@@ -13,7 +13,7 @@
       href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=25" />
+    <link rel="stylesheet" href="styles.css?v=28" />
   </head>
   <body>
     <div id="slotSelectScreen" class="slot-select-screen">
@@ -25,15 +25,12 @@
 
         <div class="main-menu-actions" aria-label="Main menu actions">
           <button id="mainPlayBtn" class="menu-btn large main-menu-action" type="button">
-            <span class="ui-icon ui-icon-play" aria-hidden="true"></span>
             <span>Play</span>
           </button>
           <button id="mainSettingsBtn" class="menu-btn large main-menu-action" type="button">
-            <span class="ui-icon ui-icon-settings" aria-hidden="true"></span>
             <span>Settings</span>
           </button>
           <button id="mainQuitBtn" class="menu-btn large main-menu-action danger" type="button">
-            <span class="ui-icon ui-icon-close" aria-hidden="true"></span>
             <span>Quit Game</span>
           </button>
         </div>
@@ -101,7 +98,7 @@
             </button>
             <canvas id="scratchCanvas" width="1440" height="840" aria-label="Scratch Field"></canvas>
             <div id="lootFeed" class="loot-feed" aria-live="polite"></div>
-            <div id="upgradeHint" class="upgrade-hint" aria-live="polite"></div>
+            <div id="upgradeHint" class="upgrade-hint hidden" aria-live="polite"></div>
             <div id="tooWeakMsg" style="position: absolute; bottom: 1rem; left: 1rem; background: rgba(255,100,100,0.9); color: white; padding: 0.5rem 1rem; border: 2px solid #ff6464; border-radius: 4px; font-family: 'Press Start 2P'; font-size: 0.6rem; display: none; z-index: 1000;"></div>
             <div id="autoSaveIndicator" class="autosave-indicator">Saving...</div>
           </div>
@@ -114,19 +111,41 @@
               <p>Dig deeper. Find treasures.</p>
             </div>
             <div class="hud-actions">
-              <button id="inGameSaveBtn" class="menu-btn small" title="Save"><span class="custom-icon icon-save"></span></button>
-            <button id="inGameSettingsBtn" class="menu-btn small" title="Settings"><span class="custom-icon icon-settings"></span></button>
-            <button id="inGameMainMenuBtn" class="menu-btn small" title="Main Menu"><span class="custom-icon icon-home"></span></button>
+              <button id="inGameSaveBtn" class="menu-btn small hud-icon-btn" type="button" title="Save" aria-label="Save">
+                <svg class="hud-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 3h12l2 2v16H5V3Z"></path>
+                  <path d="M8 3v6h8V3"></path>
+                  <path d="M8 15h8v6H8v-6Z"></path>
+                  <path d="M14 5h2v3h-2V5Z"></path>
+                </svg>
+              </button>
+              <button id="inGameSettingsBtn" class="menu-btn small hud-icon-btn" type="button" title="Settings" aria-label="Settings">
+                <svg class="hud-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 7h14"></path>
+                  <path d="M5 12h14"></path>
+                  <path d="M5 17h14"></path>
+                  <path d="M9 5v4"></path>
+                  <path d="M15 10v4"></path>
+                  <path d="M11 15v4"></path>
+                </svg>
+              </button>
+              <button id="inGameMainMenuBtn" class="menu-btn small hud-icon-btn" type="button" title="Main Menu" aria-label="Main Menu">
+                <svg class="hud-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3 11 12 4l9 7"></path>
+                  <path d="M6 10v10h12V10"></path>
+                  <path d="M10 20v-6h4v6"></path>
+                </svg>
+              </button>
             </div>
           </div>
           
-          <div class="top-currencies sidebar-currencies" aria-label="Currency" style="display: flex; justify-content: center; gap: 2rem; align-items: center;">
-            <div class="currency compact" style="text-align: center;">
-              <canvas id="coinIconCanvas" class="coin-icon-canvas" width="40" height="40"></canvas>
+          <div class="top-currencies sidebar-currencies" aria-label="Currency">
+            <div class="currency compact">
+              <span class="currency-badge coin-badge" aria-hidden="true"></span>
               <strong id="fragmentsValue">0</strong>
             </div>
-            <div class="currency compact essence" style="text-align: center;">
-              <span class="currency-icon icon-stardust" aria-hidden="true"></span>
+            <div class="currency compact essence">
+              <span class="currency-badge stardust-badge" aria-hidden="true"></span>
               <strong id="rebirthValue">0</strong>
             </div>
           </div>
@@ -151,34 +170,34 @@
           <div class="upgrade-group tab-panel" data-tab-panel="helper">
             <div class="helper-header">
               <canvas id="knechtPortrait" class="helper-portrait-canvas" width="40" height="48"></canvas>
-              <h3 style="font-family: 'Press Start 2P'; font-size: 0.8rem;">WORKER</h3>
+              <h3 style="font-family: 'Press Start 2P'; font-size: 0.56rem;">WORKER</h3>
             </div>
-            <button id="radiusBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
-            <button id="autoSpeedBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
-            <button id="autoPowerBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
-            <button id="knechtsStrengthBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
+            <button id="radiusBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.48rem;"></button>
+            <button id="autoSpeedBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.48rem;"></button>
+            <button id="autoPowerBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.48rem;"></button>
+            <button id="knechtsStrengthBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.48rem;"></button>
           </div>
 
           <div class="upgrade-group tab-panel" data-tab-panel="helper">
             <div class="helper-header">
               <canvas id="handwerkerPortrait" class="helper-portrait-canvas" width="40" height="48"></canvas>
-              <h3 style="font-family: 'Press Start 2P'; font-size: 0.8rem;">BUILDER</h3>
+              <h3 style="font-family: 'Press Start 2P'; font-size: 0.56rem;">BUILDER</h3>
             </div>
-            <button id="replenishBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
-            <button id="handwerkerSpeedBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
-            <button id="handwerkerAreaBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
-            <button id="handwerkerStrengthBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
+            <button id="replenishBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.48rem;"></button>
+            <button id="handwerkerSpeedBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.48rem;"></button>
+            <button id="handwerkerAreaBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.48rem;"></button>
+            <button id="handwerkerStrengthBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.48rem;"></button>
           </div>
 
           <div class="upgrade-group tab-panel" data-tab-panel="helper">
             <div class="helper-header">
               <canvas id="meisterPortrait" class="helper-portrait-canvas" width="40" height="48"></canvas>
-              <h3 style="font-family: 'Press Start 2P'; font-size: 0.8rem;">MASTER</h3>
+              <h3 style="font-family: 'Press Start 2P'; font-size: 0.56rem;">MASTER</h3>
             </div>
-            <button id="meisterBuyBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
-            <button id="meisterSpeedBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
-            <button id="meisterAreaBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
-            <button id="meisterStrengthBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.65rem;"></button>
+            <button id="meisterBuyBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.48rem;"></button>
+            <button id="meisterSpeedBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.48rem;"></button>
+            <button id="meisterAreaBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.48rem;"></button>
+            <button id="meisterStrengthBtn" class="upgrade-btn" style="font-family: 'Press Start 2P'; font-size: 0.48rem;"></button>
           </div>
 
           <div class="upgrade-group tab-panel" data-tab-panel="economy">
@@ -240,7 +259,7 @@
               <div class="rebirth-overview">
                 <div class="rebirth-top-stats">
                   <div class="rebirth-stat"><span>Meadow Lv</span><strong id="rebirthStatTier">0</strong></div>
-                  <div class="rebirth-stat"><span>Handwerker</span><strong id="rebirthStatHandwerker">0</strong></div>
+                  <div class="rebirth-stat"><span>Builders</span><strong id="rebirthStatHandwerker">0</strong></div>
                   <div class="rebirth-stat"><span>Money</span><strong id="rebirthStatTotalMoney">0</strong></div>
                 </div>
                 <div class="rebirth-req-list">
@@ -323,6 +342,6 @@
       </section>
     </main>
 
-    <script src="script.js?v=23"></script>
+    <script src="script.js?v=26"></script>
   </body>
 </html>

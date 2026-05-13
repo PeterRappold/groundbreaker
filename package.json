@@ -1,13 +1,13 @@
 {
   "name": "groundbreaker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "GroundBreaker desktop edition with Electron packaging for Windows and Linux.",
   "author": {
     "name": "HTL Leoben",
     "email": "noreply@htlleoben.local"
   },
-  "homepage": "https://local.invalid/groundbreaker",
+  "homepage": "https://github.com/PeterRappold/groundbreaker",
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",
@@ -17,7 +17,7 @@
     "dist": "npm run generate-icon && electron-builder",
     "dist:linux": "npm run generate-icon && electron-builder --linux",
     "dist:win": "npm run generate-icon && electron-builder --win",
-    "dist:win:web": "npm run generate-icon && electron-builder --win nsis-web",
+    "dist:win:web": "npm run generate-icon && electron-builder --win nsis",
     "bundle:linux-installer": "mkdir -p dist-desktop && cp scripts/install-linux.sh dist-desktop/install-groundbreaker.sh && chmod +x dist-desktop/install-groundbreaker.sh",
     "bundle:linux-installer:web": "node scripts/generate-linux-installer.js",
     "release:web": "npm run dist:linux && npm run bundle:linux-installer:web"
@@ -26,7 +26,7 @@
     "appId": "com.htlleoben.groundbreaker",
     "productName": "GroundBreaker",
     "directories": {
-      "output": "dist-desktop"
+      "output": "dist-desktop/1.0.1"
     },
     "files": [
       "**/*",
@@ -48,25 +48,16 @@
     },
     "win": {
       "target": [
-        "nsis",
-        "nsisWeb"
-      ]
-    },
-    "nsisWeb": {
-      "artifactName": "${productName}-Web-Setup-${version}.${ext}"
+        "nsis"
+      ],
+      "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
-    },
-    "publish": [
-      {
-        "provider": "generic",
-        "url": "${env.RELEASE_BASE_URL}"
-      }
-    ]
+    }
   },
   "devDependencies": {
     "electron": "^31.3.1",

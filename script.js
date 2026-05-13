@@ -90,7 +90,25 @@ async function removeStorage(key) {
   else localStorage.removeItem(key);
 }
 
+const MAX_MEADOW_INDEX = 14;
+const HELPER_AWAKE_SECONDS = {
+  knecht: 20,
+  handwerker: 30,
+  meister: 40
+};
+const HELPER_SLEEP_SECONDS = 10;
+const STRENGTH_LIMITS = {
+  knecht: 15,
+  handwerker: 10,
+  meister: 5
+};
+
 const getLimit = () => 10 + (state.rebirth?.count || 0) * 5;
+const getStrengthLimit = (type) => STRENGTH_LIMITS[type] || getLimit();
+const getMeadowLimit = () => MAX_MEADOW_INDEX;
+const getMeadowNumber = () => Math.min(MAX_MEADOW_INDEX, Math.max(0, state.upgrades?.meadowTier || 0)) + 1;
+const getMaxMeadowNumber = () => MAX_MEADOW_INDEX + 1;
+const getHelperAwakeSeconds = (type) => HELPER_AWAKE_SECONDS[type] || 20;
 
 
 // Old individual rebirth nodes removed - now using generic skill-tree system
@@ -111,7 +129,7 @@ const COIN_TIERS = [
   { key: "ruby", image: "images/ruby_coin.png", value: 3500, baseWeight: 0, hue: "#ff4060" }
 ];
 
-// 10 Wiesen-Farbpaletten
+// 15 meadow palettes, shown to players as Meadow 1/15 through 15/15.
 const MEADOW_COLORS = [
   ["#78b54d", "#4c8f39", "#2d5f27"],     // 0: Waldwiese (Grün)
   ["#a8e063", "#78b54d", "#4c8f39"],     // 1: Hellgrün
@@ -127,7 +145,7 @@ const MEADOW_COLORS = [
   ["#c5e1a5", "#9ccc65", "#7cb342"],     // 11: Frühlingslicht (Lime)
   ["#f8bbd0", "#f48fb1", "#ec407a"],     // 12: Zuckerblüte (Rose)
   ["#ffe082", "#ffca28", "#f9a825"],     // 13: Sonnenring (Amber)
-  ["#b39ddb", "#9575cd", "#673ab7"],     // 14: Nebelviolett (Purple)
+  ["#ffab91", "#ff8a65", "#ff7043"],     // 14: Glutwiese (Orange)
   ["#ffab91", "#ff8a65", "#ff7043"]      // 15: Glutwiese (Orange)
 ];
 
@@ -147,7 +165,7 @@ const SOIL_COLORS = [
 
 const HELPER_TYPES = {
   knecht: {
-    name: "Knecht",
+    name: "Worker",
     baseRadius: 21,
     baseStrength: 0.14,
     areaPowerPerLevel: 0.03,
@@ -161,7 +179,7 @@ const HELPER_TYPES = {
     color: "#8B7355"
   },
   handwerker: {
-    name: "Handwerker",
+    name: "Builder",
     baseRadius: 34,
     baseStrength: 0.16,
     areaPowerPerLevel: 0.032,
@@ -175,7 +193,7 @@ const HELPER_TYPES = {
     color: "#E87820"
   },
   meister: {
-    name: "Meister",
+    name: "Master",
     baseRadius: 50,
     baseStrength: 0.19,
     areaPowerPerLevel: 0.042,
@@ -350,6 +368,59 @@ let gameStarted = false;
 let isScratching = false;
 let lastPoint = null;
 let inputsBound = false;
+let uiBound = false;
+let gameLoopStarted = false;
+
+function createDefaultRebirth() {
+  return {
+    count: 0,
+    shards: 0,
+    upgrades: {
+      digPower: 0,
+      coinBoost: 0,
+      speedBoost: 0,
+      mastery: 0,
+      diamondBoost: 0,
+      bloomBoost: 0
+    }
+  };
+}
+
+function createDefaultHelperUpgrades() {
+  return {
+    knecht: { count: 1, speed: 0, area: 0, strength: 0 },
+    handwerker: { count: 0, speed: 0, area: 0, strength: 0 },
+    meister: { count: 0, speed: 0, area: 0, strength: 0 }
+  };
+}
+
+function createDefaultSettings() {
+  return { particles: true, autoSave: true, fps: false, language: "en", resolution: "1", volume: 0.5 };
+}
+
+function resetRuntimeStateForSlot() {
+  state.money = 0;
+  state.totalMoney = 0;
+  state.rebirth = createDefaultRebirth();
+  state.upgrades = { coinValue: 0, meadowTier: 0 };
+  state.helperUpgrades = createDefaultHelperUpgrades();
+  state.board = {
+    coins: [],
+    clearedPct: 0,
+    requiredPct: 70,
+    clearBonusPaid: false,
+    readyForReset: false
+  };
+  state.helpers = [];
+  state.lastCoinCollectTime = 0;
+  state.lastClearPercentageTime = 0;
+  state.floatingNumbers = [];
+  state.settings = createDefaultSettings();
+  saveClock = 0;
+  hasScratchedThisFrame = false;
+  selectedHelper = null;
+  pendingRebirthMenuOpen = false;
+}
 
 // Main menu logic
 async function initMainMenu() {
@@ -451,13 +522,19 @@ async function initMainMenu() {
 async function startGame() {
   if (gameStarted) return;
   gameStarted = true;
+  resetRuntimeStateForSlot();
   await loadState();
+  applySettings();
   await loadCoinImages();
   newBoard();
   syncHelpersCount();
   setupUI();
   refreshUI();
-  requestAnimationFrame(gameLoop);
+  lastFrame = performance.now();
+  if (!gameLoopStarted) {
+    gameLoopStarted = true;
+    requestAnimationFrame(gameLoop);
+  }
 }
 
 // Draw pixel art portraits on sidebar canvases — matches in-game helper models
@@ -645,6 +722,12 @@ initMainMenu();
 window.addEventListener("beforeunload", () => { if (gameStarted) saveState(); });
 
 function gameLoop(now) {
+  if (!gameStarted) {
+    lastFrame = now;
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+
   const dt = Math.min((now - lastFrame) / 1000, 0.1);
   lastFrame = now;
 
@@ -733,14 +816,13 @@ function getHelperStrengthByType(type) {
 }
 
 function getHelperTooWeakThreshold(type) {
-  const meadowTier = state.upgrades.meadowTier || 0;
-  const baseThreshold = {
-    knecht: 0.10,
-    handwerker: 0.12,
-    meister: 0.14,
-  }[type] || 0.022;
-  if (meadowTier <= 0) return baseThreshold * 0.55;
-  return Math.min(0.34, baseThreshold + meadowTier * 0.03 + Math.max(0, meadowTier - 1) * 0.006);
+  const meadowNumber = getMeadowNumber();
+  const freeThrough = {
+    knecht: 1,
+    handwerker: 6,
+    meister: 11
+  }[type] || 1;
+  return Math.min(getStrengthLimit(type), Math.max(0, meadowNumber - freeThrough));
 }
 
 function getHelperStrengthUpgradeCost(type, level) {
@@ -770,6 +852,10 @@ function getHelperMeadowEfficiency(type) {
   const meadowResistance = Math.pow(1 + meadowTier * 0.18, 0.95 + meadowTier * 0.04);
   const strengthFloor = type === "meister" ? 0.18 : type === "handwerker" ? 0.12 : 0.1;
   return Math.max(strengthFloor, (tierPower * upgradeScaling * strengthBonus * rebirthSupport) / meadowResistance);
+}
+
+function getRequiredStrengthLevelForMeadow(type) {
+  return getHelperTooWeakThreshold(type);
 }
 
 function getHelperSpeedByType(type) {
@@ -815,11 +901,11 @@ function effectiveCost(base, growth, level) {
 }
 
 function getRebirthRequirementMoney() {
-  return Math.floor(5000 * Math.pow(1.7, state.rebirth.count));
+  return Math.floor(25000 * Math.pow(2.15, state.rebirth.count));
 }
 
 function getRebirthRequirementTier() {
-  return 3 + state.rebirth.count;
+  return Math.min(getMeadowLimit(), 3 + state.rebirth.count);
 }
 
 function canRebirth() {
@@ -830,11 +916,13 @@ function calculateRebirthGain() {
   if (!canRebirth()) return 0;
   const reqMoney = getRebirthRequirementMoney();
   const reqTier = getRebirthRequirementTier();
-  const moneyPart = Math.floor((state.money / reqMoney) * 0.85);
-  const tierPart = Math.floor((state.upgrades.meadowTier - reqTier + 1) * 0.6);
+  const moneyRatio = Math.max(1, state.money / reqMoney);
+  const moneyPart = Math.floor(Math.log2(moneyRatio) * 1.35);
+  const tierPart = Math.max(0, state.upgrades.meadowTier - reqTier);
+  const helperPart = Math.floor(getTotalHelperCount() / 10);
   const prestigeMult = 1 + (state.rebirth.upgrades.prestigeMultiplier || 0) * 0.5;
   const expBonus = state.rebirth.upgrades.experience || 0;
-  return Math.max(1, Math.floor((1 + moneyPart + tierPart) * prestigeMult) + expBonus);
+  return Math.max(1, Math.floor((1 + moneyPart + tierPart + helperPart) * prestigeMult) + expBonus);
 }
 
 function getRebirthUpgradeCost(kind, level) {
@@ -944,20 +1032,22 @@ function updateHelperMenu() {
   const cfg = HELPER_TYPES[type];
   const up = state.helperUpgrades[type];
 
-  helperMenuTitle.textContent = `${cfg.name} Helfer`;
+  helperMenuTitle.textContent = cfg.name;
   if (selectedHelper.isSleeping) {
-    helperMenuInfo.textContent = `Status: schläft (${Math.ceil(selectedHelper.sleepRemaining)}s) - Klick auf Wecken spart Zeit.`;
+    helperMenuInfo.textContent = `Status: sleeping - wakes in ${Math.ceil(selectedHelper.sleepRemaining)}s, or click to wake now.`;
   } else {
-    helperMenuInfo.textContent = `Status: aktiv - wird nach ${Math.ceil(selectedHelper.awakeRemaining)}s müde.`;
+    helperMenuInfo.textContent = `Status: active - sleeps in ${Math.ceil(selectedHelper.awakeRemaining)}s.`;
   }
 
-  helperWakeBtn.textContent = selectedHelper.isSleeping ? "Jetzt aufwecken (15s Cooldown skippen)" : "Aktiv - kein Wecken nötig";
+  helperWakeBtn.textContent = selectedHelper.isSleeping ? "Wake up" : "Active";
   helperWakeBtn.disabled = !selectedHelper.isSleeping;
 
   const strengthCost = getHelperStrengthUpgradeCost(type, up.strength || 0);
   if (helperUpgradeStrengthBtn) {
-    helperUpgradeStrengthBtn.textContent = `Strength Lv.${up.strength || 0}\nCost: ${formatNumber(strengthCost)} Money`;
-    helperUpgradeStrengthBtn.disabled = state.money < strengthCost;
+    const strengthLimit = getStrengthLimit(type);
+    const strengthLevel = up.strength || 0;
+    helperUpgradeStrengthBtn.textContent = `Strength Lv.${strengthLevel >= strengthLimit ? "MAX" : `${strengthLevel}/${strengthLimit}`}\nCost: ${formatNumber(strengthCost)} Money`;
+    helperUpgradeStrengthBtn.disabled = state.money < strengthCost || strengthLevel >= strengthLimit;
   }
 
   const speedCost = effectiveCost(cfg.costSpeed, 1.55, up.speed);
@@ -1008,11 +1098,7 @@ function bindInputs() {
     const p = getCanvasPos(e.clientX, e.clientY);
     const clickedHelper = findClickedHelper(p.x, p.y);
     if (clickedHelper) return;
-    isScratching = true;
-    lastPoint = p;
-    scratchAt(lastPoint.x, lastPoint.y, getShovelDigRadius(), getShovelBrushStrength());
-    triggerLuckyCharm(lastPoint.x, lastPoint.y);
-    playSFX('scratch');
+    stopScratching();
     e.preventDefault();
   });
 
@@ -1032,11 +1118,7 @@ function bindInputs() {
     const p = getCanvasPos(t.clientX, t.clientY);
     const clickedHelper = findClickedHelper(p.x, p.y);
     if (clickedHelper) return;
-    isScratching = true;
-    lastPoint = p;
-    scratchAt(lastPoint.x, lastPoint.y, getShovelDigRadius(), getShovelBrushStrength());
-    triggerLuckyCharm(lastPoint.x, lastPoint.y);
-    playSFX('scratch');
+    stopScratching();
   }, { passive: false });
 
   canvas.addEventListener("touchmove", (e) => {
@@ -1057,14 +1139,7 @@ function bindInputs() {
     const p = getCanvasPos(e.clientX, e.clientY);
     const clickedHelper = findClickedHelper(p.x, p.y);
     if (clickedHelper) return;
-    isScratching = true;
-    lastPoint = p;
-    if (canvas.setPointerCapture) {
-      try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
-    }
-    scratchAt(lastPoint.x, lastPoint.y, getShovelDigRadius(), getShovelBrushStrength());
-    triggerLuckyCharm(lastPoint.x, lastPoint.y);
-    playSFX('scratch');
+    stopScratching();
     e.preventDefault();
   });
 
@@ -1157,7 +1232,7 @@ function resetRebirthUpgradesWithRefund() {
   state.upgrades.coinValue = 0;
   state.upgrades.meadowTier = 0;
   newBoard();
-  showLootPopup("Rebirth komplett zurückgesetzt");
+  showLootPopup("Rebirth reset complete");
 }
 
 function isHelperUnlocked(type) {
@@ -1178,12 +1253,12 @@ function getHelperUnlockInfo(type) {
   if (type === "handwerker") {
     if (isHelperUnlocked("handwerker")) return { locked: false };
     const need = Math.max(0, 5 - state.helperUpgrades.knecht.count);
-    return { locked: true, need, reason: `Benötigt ${need} mehr Knechte` };
+    return { locked: true, need, reason: `Requires ${need} more Workers` };
   }
   if (type === "meister") {
     if (isHelperUnlocked("meister")) return { locked: false };
     const need = Math.max(0, 8 - state.helperUpgrades.handwerker.count);
-    return { locked: true, need, reason: `Benötigt ${need} mehr Handwerker` };
+    return { locked: true, need, reason: `Requires ${need} more Builders` };
   }
   return { locked: false };
 }
@@ -1252,15 +1327,19 @@ function paletteLabel(index) {
     "Frühlingslicht",
     "Zuckerblüte",
     "Sonnenring",
-    "Nebelviolett",
     "Glutwiese"
   ];
   return labels[Math.min(index, labels.length - 1)];
 }
 
+function meadowLabel() {
+  return `${getMeadowNumber()}/${getMaxMeadowNumber()}`;
+}
+
 function setUpgradeHint(text) {
   if (!upgradeHint) return;
   upgradeHint.textContent = text;
+  upgradeHint.classList.toggle("hidden", !text);
 }
 
 function getCoinWeightsForTier() {
@@ -1330,7 +1409,7 @@ function newBoard() {
   resetHelpersPosition();
   updateClearPercentage();
 
-  boardStatus.textContent = "Die Helfer graben automatisch. Kaufe bessere Helfer um schneller voranzukommen!";
+  boardStatus.textContent = "Helpers dig automatically. Buy stronger helpers to progress faster.";
 }
 
 function renderBoard() {
@@ -1431,35 +1510,110 @@ function drawCoins() {
 function drawOverlayLayer() {
   overlayCtx.globalCompositeOperation = "source-over";
   const [light, mid, dark] = getCurrentMeadowPalette();
+  const meadowTier = Math.min(MAX_MEADOW_INDEX, state.upgrades.meadowTier || 0);
   overlayCtx.fillStyle = light;
   overlayCtx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Mehrschichtiges Gras-Rendering für natürlicheres Aussehen
-  // Layer 1: Basis-Grastöne
-  const tile = 12;
+  const tile = meadowTier % 3 === 0 ? 14 : meadowTier % 3 === 1 ? 10 : 12;
   for (let y = 0; y < canvas.height; y += tile) {
     for (let x = 0; x < canvas.width; x += tile) {
       const gx = x / tile;
       const gy = y / tile;
-      const hash = Math.abs(((gx * 104729) ^ (gy * 2654435761)) % 8);
+      const wave = Math.sin((x + meadowTier * 37) * 0.018 + y * 0.012);
+      const hash = Math.abs(((gx * 104729) ^ (gy * 2654435761) ^ (meadowTier * 83492791)) % 10);
       
       let shade;
-      if (hash < 3) shade = light;
+      if (hash + wave < 3) shade = light;
       else if (hash < 5) shade = mid;
-      else if (hash < 7) shade = mixHexColors(light, mid, 0.3);
-      else shade = mixHexColors(light, mid, 0.7);
+      else if (hash < 8) shade = mixHexColors(light, mid, 0.35);
+      else shade = mixHexColors(mid, dark, 0.45);
       
       overlayCtx.fillStyle = shade;
       overlayCtx.fillRect(x, y, tile, tile);
     }
   }
+
+  overlayCtx.save();
+  overlayCtx.globalAlpha = 0.26;
+  overlayCtx.strokeStyle = mixHexColors(mid, dark, 0.55);
+  overlayCtx.fillStyle = mixHexColors(light, dark, 0.35);
+  const motif = meadowTier % 15;
+  if (motif === 0 || motif === 10) {
+    for (let i = 0; i < 130; i++) {
+      const x = (i * 89 + meadowTier * 31) % canvas.width;
+      const y = (i * 53 + meadowTier * 47) % canvas.height;
+      overlayCtx.fillRect(x, y, 2, 8 + (i % 4));
+    }
+  } else if (motif === 1 || motif === 11) {
+    for (let i = 0; i < 90; i++) {
+      const x = (i * 97 + 29) % canvas.width;
+      const y = (i * 61 + 43) % canvas.height;
+      overlayCtx.fillStyle = i % 2 ? "#fff6a7" : "#f8ffe0";
+      overlayCtx.fillRect(x, y, 3, 3);
+      overlayCtx.fillRect(x - 2, y + 1, 7, 1);
+    }
+  } else if (motif === 2) {
+    for (let i = 0; i < 34; i++) {
+      const x = (i * 151 + 37) % canvas.width;
+      const y = (i * 83 + 71) % canvas.height;
+      overlayCtx.beginPath();
+      overlayCtx.ellipse(x, y, 34 + (i % 5) * 8, 12 + (i % 3) * 5, (i % 4) * 0.3, 0, Math.PI * 2);
+      overlayCtx.fill();
+    }
+  } else if (motif === 3 || motif === 9) {
+    overlayCtx.lineWidth = 5;
+    for (let i = 0; i < 22; i++) {
+      const y = (i * 57 + meadowTier * 18) % canvas.height;
+      overlayCtx.beginPath();
+      overlayCtx.moveTo(0, y);
+      for (let x = 0; x <= canvas.width; x += 70) {
+        overlayCtx.lineTo(x, y + Math.sin(x * 0.018 + i) * 18);
+      }
+      overlayCtx.stroke();
+    }
+  } else if (motif === 4 || motif === 5) {
+    overlayCtx.lineWidth = 3;
+    for (let y = 24; y < canvas.height; y += 38) {
+      overlayCtx.beginPath();
+      for (let x = 0; x <= canvas.width; x += 24) {
+        const yy = y + Math.sin(x * 0.04 + meadowTier) * 7;
+        if (x === 0) overlayCtx.moveTo(x, yy);
+        else overlayCtx.lineTo(x, yy);
+      }
+      overlayCtx.stroke();
+    }
+  } else if (motif === 6 || motif === 14) {
+    for (let i = 0; i < 100; i++) {
+      const x = (i * 113 + 17) % canvas.width;
+      const y = (i * 79 + 23) % canvas.height;
+      overlayCtx.fillStyle = i % 3 ? "#efe7ff" : "#c9b7ff";
+      overlayCtx.fillRect(x - 1, y, 5, 1);
+      overlayCtx.fillRect(x + 1, y - 2, 1, 5);
+    }
+  } else if (motif === 7 || motif === 13) {
+    for (let i = 0; i < 120; i++) {
+      const x = (i * 71 + 11) % canvas.width;
+      const y = (i * 127 + 19) % canvas.height;
+      overlayCtx.fillStyle = i % 2 ? "#fff4a6" : "#ffcf4a";
+      overlayCtx.fillRect(x, y, 4, 4);
+      overlayCtx.fillRect(x - 2, y + 1, 8, 2);
+    }
+  } else if (motif === 8 || motif === 12) {
+    for (let i = 0; i < 110; i++) {
+      const x = (i * 103 + 59) % canvas.width;
+      const y = (i * 67 + 101) % canvas.height;
+      overlayCtx.beginPath();
+      overlayCtx.ellipse(x, y, 6, 2, (i % 6) * 0.45, 0, Math.PI * 2);
+      overlayCtx.fill();
+    }
+  }
+  overlayCtx.restore();
   
-  // Layer 2: Organische Grashalme-Textur
   overlayCtx.globalAlpha = 0.38;
-  for (let i = 0; i < 1200; i++) {
+  for (let i = 0; i < 900; i++) {
     const x = Math.random() * canvas.width;
     const y = Math.random() * canvas.height;
-    const noise = Math.sin(x * 0.008 + y * 0.012) * Math.cos(x * 0.005 + y * 0.008);
+    const noise = Math.sin(x * 0.008 + y * 0.012 + meadowTier) * Math.cos(x * 0.005 + y * 0.008);
     const hash = ((noise + 1) * 50) % 100;
     if (hash < 45) overlayCtx.fillStyle = dark;
     else if (hash < 75) overlayCtx.fillStyle = mid;
@@ -1470,7 +1624,6 @@ function drawOverlayLayer() {
   }
   overlayCtx.globalAlpha = 1;
   
-  // Layer 3: Feindetails und Schatten
   overlayCtx.globalAlpha = 0.06;
   for (let i = 0; i < 400; i++) {
     const x = Math.random() * canvas.width;
@@ -1513,7 +1666,6 @@ function triggerLuckyCharm(x, y) {
     }
     if (collectedCount > 0) {
       spawnDustPuff({x, y}, x, y, 60);
-      showLootPopup(`Glücksbringer! + ${collectedCount} Coins!`);
     }
   }
 }
@@ -1524,11 +1676,11 @@ function scratchAt(x, y, radius, brushStrength) {
   overlayCtx.globalCompositeOperation = "destination-out";
 
   const inner = radius * 0.2;
-  const coreStrength = Math.max(0.02, Math.min(0.34, brushStrength));
-  const midStrength = Math.max(0.01, Math.min(0.24, coreStrength * 0.62));
+  const coreStrength = Math.max(0.01, Math.min(0.12, brushStrength * 0.42));
+  const midStrength = Math.max(0.006, Math.min(0.075, coreStrength * 0.55));
   const grad = overlayCtx.createRadialGradient(x, y, inner, x, y, radius);
   grad.addColorStop(0, `rgba(0, 0, 0, ${coreStrength})`);
-  grad.addColorStop(0.6, `rgba(0, 0, 0, ${midStrength})`);
+  grad.addColorStop(0.45, `rgba(0, 0, 0, ${midStrength})`);
   grad.addColorStop(1, "rgba(0, 0, 0, 0)");
 
   overlayCtx.fillStyle = grad;
@@ -1566,7 +1718,6 @@ function collectVisibleCoins() {
       addMoney(payout);
       playSFX('collect');
       spawnFloatingNumber(coin.x, coin.y, `+${formatNumber(payout)}`, coin.tier.color || "#FFD700");
-      showLootPopup(`${dropLabel} ${coinLabel(coin.tier.key)}  +${formatNumber(payout)} Geld`);
     }
   }
 
@@ -1575,7 +1726,6 @@ function collectVisibleCoins() {
     const tier = state.upgrades.meadowTier;
     const bonus = 200 * (1 + tier * 0.5) * (1 + state.rebirth.count * 0.15);
     addMoney(bonus);
-    showLootPopup(`Alle Coins gefunden! +${formatNumber(bonus)} Bonus (Tier ${tier})`);
     // Auto-reset: Neue Wiese nach kurzer Verzögerung
     setTimeout(() => {
       newBoard();
@@ -1585,13 +1735,13 @@ function collectVisibleCoins() {
 
 function coinLabel(key) {
   if (key === "bronze") return "Bronze";
-  if (key === "silver") return "Silber";
+  if (key === "silver") return "Silver";
   if (key === "gold") return "Gold";
   if (key === "titanium") return "Titan";
-  if (key === "emerald") return "Smaragd";
-  if (key === "diamond") return "Diamant";
-  if (key === "ruby") return "Rubin";
-  return key ? key.charAt(0).toUpperCase() + key.slice(1) : "Münze";
+  if (key === "emerald") return "Emerald";
+  if (key === "diamond") return "Diamond";
+  if (key === "ruby") return "Ruby";
+  return key ? key.charAt(0).toUpperCase() + key.slice(1) : "Coin";
 }
 
 function showLootPopup(text) {
@@ -1727,17 +1877,14 @@ function updateHelpers(dt) {
     const speed = getHelperSpeedByType(type);
     const interval = getHelperDigIntervalByType(type);
     const strength = getHelperStrengthByType(type) * getHelperMeadowEfficiency(type);
+    const strengthLevel = state.helperUpgrades[type].strength || 0;
+    const requiredStrength = getRequiredStrengthLevelForMeadow(type);
+    const isTooWeak = strengthLevel < requiredStrength;
 
-    // Check if helper is too weak
-    if (strength < getHelperTooWeakThreshold(type)) {
+    if (strengthLevel < requiredStrength) {
       if (!tooWeakHelpers.find(h => h.type === type)) {
-        tooWeakHelpers.push({ type, strength });
+        tooWeakHelpers.push({ type, strengthLevel, requiredStrength });
       }
-      helper.isSleeping = true;
-      helper.sleepRemaining = 0;
-      helper.digPulse = Math.max(0, helper.digPulse - dt * 2.8);
-      helper.swing = Math.max(0, helper.swing - dt * 3.8);
-      continue;
     }
 
     if (helper.isSleeping) {
@@ -1745,7 +1892,7 @@ function updateHelpers(dt) {
       if (helper.sleepRemaining <= 0) {
         helper.isSleeping = false;
         helper.sleepRemaining = 0;
-        helper.awakeRemaining = 24 + Math.random() * 10;
+        helper.awakeRemaining = getHelperAwakeSeconds(type);
       } else {
         helper.digPulse = Math.max(0, helper.digPulse - dt * 2.8);
         helper.swing = Math.max(0, helper.swing - dt * 3.8);
@@ -1753,10 +1900,29 @@ function updateHelpers(dt) {
       }
     }
 
+    if (isTooWeak) {
+      helper.targetCoin = null;
+      helper.scanCooldown = scanInterval;
+      const dx = helper.targetX - helper.x;
+      const dy = helper.targetY - helper.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      if (dist < 8) {
+        chooseHelperTarget(helper);
+      } else if (dist >= 1.5) {
+        const step = Math.min(dist, speed * dt);
+        helper.x += (dx / dist) * step;
+        helper.y += (dy / dist) * step;
+      }
+      helper.walkPhase += dt * (7.5 + state.helperUpgrades[type].speed * 0.25);
+      helper.digPulse = Math.max(0, helper.digPulse - dt * 2.8);
+      helper.swing = Math.max(0, helper.swing - dt * 3.8);
+      continue;
+    }
+
     helper.awakeRemaining -= dt;
     if (helper.awakeRemaining <= 0) {
       helper.isSleeping = true;
-      helper.sleepRemaining = 15;
+      helper.sleepRemaining = HELPER_SLEEP_SECONDS;
       helper.targetCoin = null;
       continue;
     }
@@ -1825,7 +1991,7 @@ function updateHelpers(dt) {
         const cfg = HELPER_TYPES[h.type];
         return cfg.name.toUpperCase();
       }).join(", ");
-      tooWeakMsg.textContent = `Following helpers are too weak: ${helperNames}`;
+      tooWeakMsg.textContent = `Too weak for this meadow: ${helperNames}. Buy Strength upgrades.`;
       tooWeakMsg.style.display = "block";
     } else {
       tooWeakMsg.style.display = "none";
@@ -2113,7 +2279,7 @@ function createHelper(type) {
     scanCooldown: 0,
     targetCoin: null,
     walkPhase: Math.random() * Math.PI * 2,
-    awakeRemaining: type === "knecht" ? 34 + Math.random() * 12 : 24 + Math.random() * 10,
+    awakeRemaining: getHelperAwakeSeconds(type),
     isSleeping: false,
     sleepRemaining: 0,
     digPulse: 0,
@@ -2137,7 +2303,7 @@ function resetHelpersPosition() {
     helper.scanCooldown = 0;
     helper.targetCoin = null;
     helper.walkPhase = Math.random() * Math.PI * 2;
-    helper.awakeRemaining = helper.type === "knecht" ? 34 + Math.random() * 12 : 24 + Math.random() * 10;
+    helper.awakeRemaining = getHelperAwakeSeconds(helper.type);
     helper.isSleeping = false;
     helper.sleepRemaining = 0;
     helper.digPulse = 0;
@@ -2155,12 +2321,23 @@ function syncHelpersCount() {
   state.helperUpgrades.handwerker.count = handwerker;
   state.helperUpgrades.meister.count = meister;
 
-  state.helpers = [];
-  for (let i = 0; i < knecht; i++) state.helpers.push(createHelper("knecht"));
-  for (let i = 0; i < handwerker; i++) state.helpers.push(createHelper("handwerker"));
-  for (let i = 0; i < meister; i++) state.helpers.push(createHelper("meister"));
-
-  resetHelpersPosition();
+  const targets = { knecht, handwerker, meister };
+  for (const type of ["knecht", "handwerker", "meister"]) {
+    const existing = state.helpers.filter((helper) => helper.type === type);
+    const delta = targets[type] - existing.length;
+    if (delta > 0) {
+      for (let i = 0; i < delta; i++) state.helpers.push(createHelper(type));
+    } else if (delta < 0) {
+      let removeLeft = Math.abs(delta);
+      state.helpers = state.helpers.filter((helper) => {
+        if (helper.type === type && removeLeft > 0) {
+          removeLeft--;
+          return false;
+        }
+        return true;
+      });
+    }
+  }
 }
 
 function spawnDustPuff(helper, x, y, amount) {
@@ -2311,6 +2488,11 @@ function setupUI() {
   toggleRebirthMenu(false);
   toggleHelperMenu(false);
   bindInputs();
+  if (uiBound) {
+    setActiveTab("helper");
+    return;
+  }
+  uiBound = true;
 
   closeRebirthMenuBtn.addEventListener("click", () => toggleRebirthMenu(false));
   // Rebirth menu can ONLY be closed via the Zurück button (no click-outside)
@@ -2327,20 +2509,20 @@ function setupUI() {
   if (spriteManager && spriteManager.loadAll) spriteManager.loadAll();
 
   const upgradeHints = new Map([
-    [knechtsBtn, "Knecht erweitert deine Grundarbeit: mehr Helfer auf der Wiese."],
-    [helperUpgradeStrengthBtn, "Strength erhöht, wie stark dein Helfer die Erde aufbricht."],
-    [knechtsSpeedBtn, "Speed macht den Knecht schneller beim Suchen und Graben."],
-    [knechtsAreaBtn, "Area vergrößert die Grabfläche des Knechts."],
-    [handwerkerBtn, "Handwerker werden erst mit höherer Wiese oder Rebirth freigeschaltet."],
-    [handwerkerSpeedBtn, "Handwerker-Speed beschleunigt das automatische Bearbeiten der Coins."],
-    [handwerkerAreaBtn, "Handwerker-Area erhöht ihre Reichweite für größere Treffer."],
-    [meisterBtn, "Meister sind die stärksten Helfer und werden später freigeschaltet."],
-    [meisterSpeedBtn, "Meister-Speed gibt deinem stärksten Helfer mehr Tempo."],
-    [meisterAreaBtn, "Meister-Area macht den größten Grabbereich im Feld."],
-    [coinValueBtn, "Coin Value erhöht den Geldwert pro Coin."],
+    [knechtsBtn, "Workers add more basic helpers to the field."],
+    [helperUpgradeStrengthBtn, "Strength lets helpers work on harder meadows."],
+    [knechtsSpeedBtn, "Speed makes Workers move and dig faster."],
+    [knechtsAreaBtn, "Area increases the Worker's digging radius."],
+    [handwerkerBtn, "Builders unlock after enough Workers and handle harder meadows."],
+    [handwerkerSpeedBtn, "Builder Speed makes automatic digging faster."],
+    [handwerkerAreaBtn, "Builder Area increases their digging radius."],
+    [meisterBtn, "Masters are late-game helpers for the hardest meadows."],
+    [meisterSpeedBtn, "Master Speed gives your strongest helper more tempo."],
+    [meisterAreaBtn, "Master Area creates the largest digging radius."],
+    [coinValueBtn, "Coin Value increases money earned per coin."],
     [meadowTierBtn, "Meadow level changes the color and coin chances on the field."],
-    [nextMeadowBtn, "Rebirth öffnet die Prestige-Ansicht mit Voraussetzungen und Upgrades."],
-    [resetRunBtn, "Neu starten setzt den Fortschritt zurück."],
+    [nextMeadowBtn, "Rebirth opens prestige requirements and upgrades."],
+    [resetRunBtn, "Reset starts the current run over."],
   ]);
 
   for (const [button, text] of upgradeHints.entries()) {
@@ -2351,7 +2533,7 @@ function setupUI() {
     button.addEventListener("blur", () => setUpgradeHint(""));
   }
 
-  if (inGameSaveBtn) inGameSaveBtn.addEventListener("click", () => { saveState(); showLootPopup((i18n[state.settings?.language||"de"]?.save || "Saved") + " OK"); });
+  if (inGameSaveBtn) inGameSaveBtn.addEventListener("click", () => { saveState(); showLootPopup((i18n[state.settings?.language||"en"]?.save || "Saved") + " OK"); });
   if (inGameSettingsBtn) inGameSettingsBtn.addEventListener("click", () => document.getElementById("settingsPanel").classList.toggle("hidden"));
   if (inGameMainMenuBtn) inGameMainMenuBtn.addEventListener("click", () => { saveState(); document.getElementById("slotSelectScreen").classList.remove("hidden"); initMainMenu(); gameStarted = false; });
   
@@ -2382,7 +2564,7 @@ function setupUI() {
   testRebirthUnlockBtn.addEventListener("click", () => {
     addMoney(1_000_000);
     setActiveTab("rebirth");
-    showLootPopup("Test aktiv: +1.000.000 Geld");
+    showLootPopup("Test active: +1,000,000 money");
   });
 
   canvas.addEventListener("click", (e) => {
@@ -2393,8 +2575,8 @@ function setupUI() {
     if (helper.isSleeping) {
       helper.isSleeping = false;
       helper.sleepRemaining = 0;
-      helper.awakeRemaining = 24 + Math.random() * 10;
-      showLootPopup(`${HELPER_TYPES[helper.type].name} geweckt!`);
+      helper.awakeRemaining = getHelperAwakeSeconds(helper.type);
+      showLootPopup(`${HELPER_TYPES[helper.type].name} woke up!`);
     }
     updateHelperMenu();
     toggleHelperMenu(true);
@@ -2404,7 +2586,7 @@ function setupUI() {
     if (!selectedHelper) return;
     selectedHelper.isSleeping = false;
     selectedHelper.sleepRemaining = 0;
-    selectedHelper.awakeRemaining = 24 + Math.random() * 10;
+    selectedHelper.awakeRemaining = getHelperAwakeSeconds(selectedHelper.type);
     updateHelperMenu();
   });
 
@@ -2440,20 +2622,23 @@ function setupUI() {
 
   
   knechtsStrengthBtn.addEventListener("click", () => {
+    if ((state.helperUpgrades.knecht.strength || 0) >= getStrengthLimit("knecht")) return;
     const cost = getHelperStrengthUpgradeCost("knecht", state.helperUpgrades.knecht.strength || 0);
-    if (spendMoney(cost) && (state.helperUpgrades.knecht.strength || 0) < getLimit()) state.helperUpgrades.knecht.strength = (state.helperUpgrades.knecht.strength || 0) + 1;
+    if (spendMoney(cost)) state.helperUpgrades.knecht.strength = (state.helperUpgrades.knecht.strength || 0) + 1;
   });
 
   handwerkerStrengthBtn.addEventListener("click", () => {
     if (!isHelperUnlocked("handwerker")) return;
+    if ((state.helperUpgrades.handwerker.strength || 0) >= getStrengthLimit("handwerker")) return;
     const cost = getHelperStrengthUpgradeCost("handwerker", state.helperUpgrades.handwerker.strength || 0);
-    if (spendMoney(cost) && (state.helperUpgrades.handwerker.strength || 0) < getLimit()) state.helperUpgrades.handwerker.strength = (state.helperUpgrades.handwerker.strength || 0) + 1;
+    if (spendMoney(cost)) state.helperUpgrades.handwerker.strength = (state.helperUpgrades.handwerker.strength || 0) + 1;
   });
 
   meisterStrengthBtn.addEventListener("click", () => {
     if (!isHelperUnlocked("meister")) return;
+    if ((state.helperUpgrades.meister.strength || 0) >= getStrengthLimit("meister")) return;
     const cost = getHelperStrengthUpgradeCost("meister", state.helperUpgrades.meister.strength || 0);
-    if (spendMoney(cost) && (state.helperUpgrades.meister.strength || 0) < getLimit()) state.helperUpgrades.meister.strength = (state.helperUpgrades.meister.strength || 0) + 1;
+    if (spendMoney(cost)) state.helperUpgrades.meister.strength = (state.helperUpgrades.meister.strength || 0) + 1;
   });
 
   knechtsAreaBtn.addEventListener("click", () => {
@@ -2541,16 +2726,16 @@ function setupUI() {
   }
 
   const skillInfoTitles = {
-    digPower: "Grabkraft+", coinBoost: "Coin-Wert+", speedBoost: "Helfer-Speed+", mastery: "Münz-Magnet", diamondBoost: "Diamant-Boost", clickPower: "Big Hands",
-    doubleDrop: "Doppel-Drop", knechtMastery: "Knecht-Meisterung", autoCollect: "Auto-Collect", rareFinder: "Seltener Finder", bloomBoost: "Blüten-Boost", turboDig: "Turbo-Graben", luckyCharm: "Glücksbringer",
-    goldenTouch: "Goldener Touch", handwerkerMastery: "Handwerker-Meisterung", megaMagnet: "Mega-Magnet", rubyNose: "Ruby-Spürnase", efficiency: "Effizienz", experience: "Erfahrung",
-    archaeologistInstinct: "Archäologen-Instinkt", treasureRain: "Schatz-Regen", eternalBonus: "Eternaler Bonus", emeraldFever: "Smaragd-Fieber", prestigeMultiplier: "Prestige-Multiplikator", ultimateDigging: "Ultimative Grabung"
+    digPower: "Dig Power+", coinBoost: "Coin Value+", speedBoost: "Helper Speed+", mastery: "Coin Magnet", diamondBoost: "Diamond Boost", clickPower: "Big Hands",
+    doubleDrop: "Double Drop", knechtMastery: "Worker Mastery", autoCollect: "Auto Collect", rareFinder: "Rare Finder", bloomBoost: "Bloom Boost", turboDig: "Turbo Dig", luckyCharm: "Lucky Charm",
+    goldenTouch: "Golden Touch", handwerkerMastery: "Builder Mastery", megaMagnet: "Mega Magnet", rubyNose: "Ruby Sense", efficiency: "Efficiency", experience: "Experience",
+    archaeologistInstinct: "Master Instinct", treasureRain: "Treasure Rain", eternalBonus: "Eternal Bonus", emeraldFever: "Emerald Fever", prestigeMultiplier: "Prestige Multiplier", ultimateDigging: "Ultimate Digging"
   };
   const skillInfoDescs = {
-    digPower: "Höhere Grab-Stärke pro Level", coinBoost: "Coins sind mehr wert", speedBoost: "Helfer bewegen sich schneller", mastery: "Helfer finden Coins von weiter weg", diamondBoost: "Mehr Diamanten spawnen", clickPower: "Dein manueller Kratz-Radius steigt",
-    doubleDrop: "Chance auf doppelte Coins", knechtMastery: "Knecht gräbt 50% schneller", autoCollect: "Coins werden schneller eingesammelt", rareFinder: "Höhere Chance auf seltene Coins", bloomBoost: "Mehr Coins pro Wiese", turboDig: "Grab-Geschwindigkeit +20%", luckyCharm: "Chance auf Coin-Explosion beim Kratzen",
-    goldenTouch: "Alle Coins +25% Wert", handwerkerMastery: "Handwerker kann Diamant graben", megaMagnet: "Riesiger Scan-Radius", rubyNose: "Ruby Spawn-Rate erhöht", efficiency: "Upgrade-Kosten -5%", experience: "Rebirth gibt +1 extra Shard",
-    archaeologistInstinct: "Meister gräbt 2x schneller", treasureRain: "Extra Coins pro Wiese", eternalBonus: "Permanent +10% alle Stats", emeraldFever: "Emerald Wert 2x", prestigeMultiplier: "Shards earned 1.5x", ultimateDigging: "ALLE Helfer können ALLE Coins graben!"
+    digPower: "More digging strength per level", coinBoost: "Coins are worth more", speedBoost: "Helpers move faster", mastery: "Helpers spot coins from farther away", diamondBoost: "More diamonds can appear", clickPower: "Legacy manual digging bonus",
+    doubleDrop: "Chance to double coin rewards", knechtMastery: "Workers dig 50% faster", autoCollect: "Coins are collected faster", rareFinder: "Higher chance for rare coins", bloomBoost: "More coins per meadow", turboDig: "Digging speed +20%", luckyCharm: "Chance for a coin burst",
+    goldenTouch: "All coins gain +25% value", handwerkerMastery: "Builders can dig diamonds", megaMagnet: "Huge scan radius", rubyNose: "Ruby spawn rate increases", efficiency: "Upgrade costs -5%", experience: "Rebirth grants +1 extra shard",
+    archaeologistInstinct: "Masters dig 2x faster", treasureRain: "Extra coins per meadow", eternalBonus: "Permanent +10% to all stats", emeraldFever: "Emerald value 2x", prestigeMultiplier: "Shards earned 1.5x", ultimateDigging: "All helpers can dig all coins"
   };
 
   const skillInfoPanel = document.getElementById("skillInfoPanel");
@@ -2564,14 +2749,13 @@ function setupUI() {
     const currentLvl = state.rebirth.upgrades[skill] || 0;
     
     if (!isTierUnlocked(tierNum)) {
-      skillInfoPanel.innerHTML = `<div class="skill-info-content"><span class="skill-info-title">🔒 Gesperrt</span><span class="skill-info-desc">Benötigt 3 Upgrades aus Tier ${tierNum - 1}</span></div>`;
+      skillInfoPanel.innerHTML = `<div class="skill-info-content"><span class="skill-info-title">Locked</span><span class="skill-info-desc">Requires 3 upgrades from Tier ${tierNum - 1}</span></div>`;
       return;
     }
     
     const cost = getRebirthUpgradeCost(skill, currentLvl);
     const costClass = state.rebirth.shards >= cost ? "" : "cannot-afford";
-    const costLabel = (i18n[state.settings?.language||"de"]?.cost || "Kosten");
-    const costText = currentLvl >= max ? "Max Level" : `${costLabel}: ${cost} Sternenstaub`;
+    const costText = currentLvl >= max ? "Max Level" : `Cost: ${cost} Stardust`;
     
     skillInfoPanel.innerHTML = `
       <div class="skill-info-content">
@@ -2621,11 +2805,12 @@ function setupUI() {
   });
 
   meadowTierBtn.addEventListener("click", () => {
+    if (state.upgrades.meadowTier >= getMeadowLimit()) return;
     const cost = effectiveCost(180, 1.7, state.upgrades.meadowTier);
     if (spendMoney(cost)) {
       state.upgrades.meadowTier++;
       newBoard();
-      boardStatus.textContent = "Wiesen-Level erhoeht. Neue Wiese mit besseren Coin-Chancen aktiv.";
+      boardStatus.textContent = "Meadow level up. New field with better coin chances active.";
     }
   });
 
@@ -2678,6 +2863,11 @@ function formatNumber(n) {
 function refreshUI() {
   const limit = getLimit();
   const limitStr = (val) => val >= limit ? "MAX" : val + "/" + limit;
+  const strengthLimitStr = (type, val) => {
+    const typeLimit = getStrengthLimit(type);
+    return val >= typeLimit ? "MAX" : `${val}/${typeLimit}`;
+  };
+  const meadowLimit = getMeadowLimit();
 
   fragmentsValue.textContent = formatNumber(state.money);
   rebirthValue.textContent = `${formatNumber(state.rebirth.shards)}`;
@@ -2700,20 +2890,22 @@ function refreshUI() {
   if (sideShards) sideShards.textContent = formatNumber(state.rebirth.shards);
   if (sideCount) sideCount.textContent = state.rebirth.count;
   const moneyProg = clamp01(state.money / Math.max(1, rebirthNeedMoney));
-  const tierProg = clamp01(state.upgrades.meadowTier / Math.max(1, rebirthNeedTier));
+  const currentMeadowNumber = getMeadowNumber();
+  const rebirthNeedMeadowNumber = Math.min(getMaxMeadowNumber(), rebirthNeedTier + 1);
+  const tierProg = clamp01(currentMeadowNumber / Math.max(1, rebirthNeedMeadowNumber));
   if (sideMoneyBar) sideMoneyBar.style.width = `${(moneyProg * 100).toFixed(1)}%`;
   if (sideTierBar) sideTierBar.style.width = `${(tierProg * 100).toFixed(1)}%`;
   if (sideMoneyText) sideMoneyText.textContent = `${formatNumber(state.money)} / ${formatNumber(rebirthNeedMoney)}`;
-  if (sideTierText) sideTierText.textContent = `${state.upgrades.meadowTier} / ${rebirthNeedTier}`;
+  if (sideTierText) sideTierText.textContent = `${currentMeadowNumber} / ${rebirthNeedMeadowNumber}`;
 
-  if (rebirthStatTier) rebirthStatTier.textContent = `${state.upgrades.meadowTier}`;
+  if (rebirthStatTier) rebirthStatTier.textContent = `${currentMeadowNumber}`;
   if (rebirthStatHandwerker) rebirthStatHandwerker.textContent = `${state.helperUpgrades.handwerker.count}`;
   if (rebirthStatTotalMoney) rebirthStatTotalMoney.textContent = formatNumber(state.money);
 
   const moneyProgress = clamp01(state.money / Math.max(1, rebirthNeedMoney));
-  const tierProgress = clamp01(state.upgrades.meadowTier / Math.max(1, rebirthNeedTier));
+  const tierProgress = clamp01(currentMeadowNumber / Math.max(1, rebirthNeedMeadowNumber));
   if (rebirthReqMoneyText) rebirthReqMoneyText.textContent = `${formatNumber(state.money)} / ${formatNumber(rebirthNeedMoney)}`;
-  if (rebirthReqTierText) rebirthReqTierText.textContent = `${state.upgrades.meadowTier} / ${rebirthNeedTier}`;
+  if (rebirthReqTierText) rebirthReqTierText.textContent = `${currentMeadowNumber} / ${rebirthNeedMeadowNumber}`;
   if (rebirthReqMoneyBar) rebirthReqMoneyBar.style.width = `${(moneyProgress * 100).toFixed(1)}%`;
   if (rebirthReqTierBar) rebirthReqTierBar.style.width = `${(tierProgress * 100).toFixed(1)}%`;
 
@@ -2800,15 +2992,15 @@ function refreshUI() {
   
   const kStr = getHelperStrengthUpgradeCost("knecht", state.helperUpgrades.knecht.strength || 0);
   if(knechtsStrengthBtn) {
-    knechtsStrengthBtn.textContent = `💪 Strength Lv${limitStr(state.helperUpgrades.knecht.strength || 0)}\nCost: ${formatNumber(kStr)}`;
-    knechtsStrengthBtn.disabled = state.money < kStr || (state.helperUpgrades.knecht.strength || 0) >= limit;
+    knechtsStrengthBtn.textContent = `💪 Strength Lv${strengthLimitStr("knecht", state.helperUpgrades.knecht.strength || 0)}\nCost: ${formatNumber(kStr)}`;
+    knechtsStrengthBtn.disabled = state.money < kStr || (state.helperUpgrades.knecht.strength || 0) >= getStrengthLimit("knecht");
   }
   
   const hStr = getHelperStrengthUpgradeCost("handwerker", state.helperUpgrades.handwerker.strength || 0);
   if(handwerkerStrengthBtn) {
     if (isHelperUnlocked("handwerker")) {
-      handwerkerStrengthBtn.textContent = `💪 Strength Lv${limitStr(state.helperUpgrades.handwerker.strength || 0)}\nCost: ${formatNumber(hStr)}`;
-      handwerkerStrengthBtn.disabled = state.money < hStr || (state.helperUpgrades.handwerker.strength || 0) >= limit;
+      handwerkerStrengthBtn.textContent = `💪 Strength Lv${strengthLimitStr("handwerker", state.helperUpgrades.handwerker.strength || 0)}\nCost: ${formatNumber(hStr)}`;
+      handwerkerStrengthBtn.disabled = state.money < hStr || (state.helperUpgrades.handwerker.strength || 0) >= getStrengthLimit("handwerker");
     } else {
       handwerkerStrengthBtn.textContent = `🔒 Strength\nRequires: Builder`;
       handwerkerStrengthBtn.disabled = true;
@@ -2818,8 +3010,8 @@ function refreshUI() {
   const mStr = getHelperStrengthUpgradeCost("meister", state.helperUpgrades.meister.strength || 0);
   if(meisterStrengthBtn) {
     if (isHelperUnlocked("meister")) {
-      meisterStrengthBtn.textContent = `💪 Strength Lv${limitStr(state.helperUpgrades.meister.strength || 0)}\nCost: ${formatNumber(mStr)}`;
-      meisterStrengthBtn.disabled = state.money < mStr || (state.helperUpgrades.meister.strength || 0) >= limit;
+      meisterStrengthBtn.textContent = `💪 Strength Lv${strengthLimitStr("meister", state.helperUpgrades.meister.strength || 0)}\nCost: ${formatNumber(mStr)}`;
+      meisterStrengthBtn.disabled = state.money < mStr || (state.helperUpgrades.meister.strength || 0) >= getStrengthLimit("meister");
     } else {
       meisterStrengthBtn.textContent = `🔒 Strength\nRequires: Master`;
       meisterStrengthBtn.disabled = true;
@@ -2831,8 +3023,8 @@ function refreshUI() {
   coinValueBtn.disabled = state.money < coinValueCost || state.upgrades.coinValue >= limit;
 
   const meadowTierCost = effectiveCost(180, 1.7, state.upgrades.meadowTier);
-  meadowTierBtn.textContent = `🌿 Meadow Lv${limitStr(state.upgrades.meadowTier)} | Color: ${paletteLabel(state.upgrades.meadowTier)}\nCost: ${formatNumber(meadowTierCost)}`;
-  meadowTierBtn.disabled = state.money < meadowTierCost || state.upgrades.meadowTier >= limit;
+  meadowTierBtn.textContent = `🌿 Meadow ${meadowLabel()} | ${paletteLabel(state.upgrades.meadowTier)}\nCost: ${formatNumber(meadowTierCost)}`;
+  meadowTierBtn.disabled = state.money < meadowTierCost || state.upgrades.meadowTier >= meadowLimit;
 
   // Skill tree nodes are now handled by refreshSkillTree() in setupUI
 
@@ -2884,9 +3076,15 @@ async function loadState() {
     state.rebirth.upgrades.ultimateDigging = state.rebirth.upgrades.ultimateDigging || 0;
     state.upgrades = data.upgrades || { coinValue: 0, meadowTier: 0 };
     state.helperUpgrades = data.helperUpgrades || { knecht: { count: 1, speed: 0, area: 0 }, handwerker: { count: 0, speed: 0, area: 0 }, meister: { count: 0, speed: 0, area: 0 } };
+    state.upgrades.meadowTier = Math.min(getMeadowLimit(), Math.max(0, state.upgrades.meadowTier || 0));
     state.helperUpgrades.knecht.count = Math.min(MAX_HELPERS_PER_TYPE, Math.max(1, state.helperUpgrades.knecht.count || 0));
     state.helperUpgrades.handwerker.count = Math.min(MAX_HELPERS_PER_TYPE, Math.max(0, state.helperUpgrades.handwerker.count || 0));
     state.helperUpgrades.meister.count = Math.min(MAX_HELPERS_PER_TYPE, Math.max(0, state.helperUpgrades.meister.count || 0));
+    for (const type of ["knecht", "handwerker", "meister"]) {
+      state.helperUpgrades[type].speed = Math.max(0, state.helperUpgrades[type].speed || 0);
+      state.helperUpgrades[type].area = Math.max(0, state.helperUpgrades[type].area || 0);
+      state.helperUpgrades[type].strength = Math.min(getStrengthLimit(type), Math.max(0, state.helperUpgrades[type].strength || 0));
+    }
 
     if (data.lastSavedAt) {
       const offlineSec = Math.max(0, (Date.now() - data.lastSavedAt) / 1000);
@@ -2907,7 +3105,7 @@ async function loadState() {
 
       addMoney(offlineGain);
       if (offlineGain > 0) {
-        showLootPopup(`AFK-Einnahmen: +${formatNumber(offlineGain)} Geld`);
+        showLootPopup(`Offline earnings: +${formatNumber(offlineGain)} money`);
       }
     }
   } catch (_) {
